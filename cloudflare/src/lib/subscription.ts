@@ -259,7 +259,12 @@ async function fetchSubscriptionUrl(
         metadata: metadataFromResponse(cached, "refresh"),
       };
     }
-    if (!response.ok) throw new Error(`Remote source ${sub.name} failed: ${response.status}`);
+    if (!response.ok) {
+      const contentType = response.headers.get("content-type") || "";
+      const responseType = contentType.includes("text/html") ? "HTML" : contentType.includes("json") ? "JSON" : "other";
+      const challenge = response.headers.get("cf-mitigated") === "challenge" ? "; upstream Cloudflare verification challenge" : "";
+      throw new Error(`Remote source ${sub.name} failed: ${response.status} (response: ${responseType}${challenge})`);
+    }
     const content = await readResponseText(response, MAX_REMOTE_SOURCE_RESPONSE_BYTES, `Remote source ${sub.name}`);
     const metadata = metadataFromResponse(response, runtime?.forceRefresh ? "refresh" : "miss");
     if (cacheKey && cacheTtl > 0) {

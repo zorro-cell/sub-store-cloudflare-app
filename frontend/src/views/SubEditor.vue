@@ -1206,13 +1206,25 @@ const fetchCompareData = async () => {
     if (res?.data?.status === "success") {
       compareData.value = res.data.data;
     } else {
-      compareData.value = null;
+      throw new Error(res?.data?.error?.message || "Subscription preview failed");
     }
+    return true;
   } catch (e) {
     console.error(e);
     compareData.value = null;
+    const responseError = (e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
+    Dialog({
+      title: t("editorPage.subConfig.pop.errorTitle"),
+      content: responseError || (e instanceof Error ? e.message : String(e)),
+      popClass: "auto-dialog",
+      noCancelBtn: true,
+      okText: t("editorPage.subConfig.pop.errorBtn"),
+      closeOnClickOverlay: true,
+    });
+    return false;
+  } finally {
+    Toast.hide("compare");
   }
-  Toast.hide("compare");
 };
 
 const openComparePanel = () => {
@@ -1244,13 +1256,12 @@ const compare = () => {
       });
       return;
     }
-    await fetchCompareData();
-    openComparePanel();
+    if (await fetchCompareData()) openComparePanel();
   });
 };
 
 const refreshCompare = async () => {
-  await fetchCompareData();
+  if (!await fetchCompareData()) closeCompare();
 };
 
 const passThroughUAOn = computed(() => {

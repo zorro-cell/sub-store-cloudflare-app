@@ -75,6 +75,20 @@ describe("subscription parsing and limits", () => {
     expect(result.metadata.profileUpdateInterval).toBe("12");
   });
 
+  it("reports an upstream verification challenge without exposing the source URL", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("challenge page", {
+      status: 403,
+      headers: { "content-type": "text/html", "cf-mitigated": "challenge" },
+    }));
+    await expect(buildSubscription({
+      source: { id: "blocked", name: "Blocked Source", type: "remote", url: "https://example.com/sub?token=private-value", content: "" },
+      sources: [],
+      requestUrl: new URL("https://example.com/download/source/blocked/json"),
+      target: "json",
+      settings: { remoteCacheTtl: 0 },
+    })).rejects.toThrow("Remote source Blocked Source failed: 403 (response: HTML; upstream Cloudflare verification challenge)");
+  });
+
   it("uses a hashed Cache API key for repeat remote fetches", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(
       "trojan://password@cache.example.com:443#Cached%20Node",
